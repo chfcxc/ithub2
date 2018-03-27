@@ -17,7 +17,7 @@ router
   .post('/signin', user.signin)
   .get('/signup', user.showSignup)
   .post('/signup', user.signup)
-  .post('/signout', user.signout)
+  .get('/signout', user.signout)
 
 
 // 话题相关

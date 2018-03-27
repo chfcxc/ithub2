@@ -1,13 +1,6 @@
-
-var mysql = require('mysql');
-
-// 创建数据库链接
-var connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '123',
-    database: 'ithub'
-});
+const connection = require('./db-helper');
+const User = require('../models/user');
+const md5 = require('md5');
 
 const moment = require('moment');
 
@@ -18,7 +11,38 @@ exports.showSignin = (req, res) => {
 
 
 exports.signin = (req, res) => {
-    res.send('signin')
+    // res.send('signin')
+    const body = req.body;
+    User.checkByEmail(body.email,(err,user)=>{
+        if(err){
+            return res.send({
+                code:500,
+                message:err.message
+            })
+        }
+        if(!user){
+            return res.send({
+                code:1,
+                message:'用户不存在'
+            })
+        }
+        // 检测密码
+        if(md5(body.password) != user.password){
+            return res.send({
+                code:2,
+                message:'密码不正确'
+            })
+        }
+
+        // 存入session
+        req.session.user = user;
+
+        // 登录成功保持登录状态
+        res.send({
+            code:200,
+            message:'成功'
+        })
+    })
 }
 
 
@@ -31,35 +55,36 @@ exports.signup = (req, res) => {
 
     const body = req.body;
     // 检测邮箱
-    connection.query('select * from `users` where `email`=?', [body.email], (err, results) => {
+    User.checkByEmail(body.email, (err, user) => {
         if (err) {
             return res.send({
                 code: 500,
                 message: err.message
             })
         }
-        if (results[0]) {
+        if (user) {
             return res.send({
                 code: 1,
                 message: "邮箱被占用"
             })
         }
-        connection.query('select * from `users` where `nickname`=?', [body.nickname], (err, results) => {
+        User.checkByNickname(body.nickname, (err, user) => {
             if (err) {
                 return res.send({
                     code: 500,
                     message: err.message
                 })
             }
-            if (results[0]) {
+            if (user) {
                 return res.send({
                     code: 2,
                     message: "昵称被占用"
                 })
             }
             body.createdAt = moment().format('YYYY-MM-DD HH:mm:ss')
+            body.password = md5(body.password);
 
-            connection.query('insert into `users` set ?', body, (err, results) => {
+            User.create(body, (err, results) => {
                 if (err) {
                     return res.send({
                         code: 500,
@@ -79,5 +104,7 @@ exports.signup = (req, res) => {
 }
 
 exports.signout = (req, res) => {
-    res.send('signout')
+    // res.send('signout')
+    delete req.session.user;
+    res.redirect('/signin')
 }
